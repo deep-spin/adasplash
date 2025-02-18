@@ -36,7 +36,7 @@ from adasplash import triton_entmax
 import torch
 
 x = torch.randn(128, 256).cuda()
-y = triton_entmax(x, alpha=1.5)
+y = triton_entmax(x, alpha=1.5, n_iter=10, fast_math=True)
 ```
 - Uses **Halley's method + bisection** instead of pure bisection.
 - Faster and more efficient than traditional Entmax implementations.
@@ -49,7 +49,7 @@ q = torch.randn(1, 8, 128, 64, device="cuda")
 k = torch.randn(1, 8, 128, 64, device="cuda")
 v = torch.randn(1, 8, 128, 64, device="cuda")
 
-output = adasplash(q, k, v)
+output = adasplash(q, k, v, alpha=1.5, niter=10, is_causal=True, varlen=None)
 ```
 - Leverages **adaptive sparsity** for efficiency in both forward and backward passes.
 - Requires **O(Tr × Tc) bits** of extra memory for storing a binary mask per block.
@@ -58,7 +58,7 @@ output = adasplash(q, k, v)
 ```python
 from adasplash import adasplash_no_block_mask
 
-output = adasplash_no_block_mask(q, k, v)
+output = adasplash_no_block_mask(q, k, v, alpha=1.5, niter=10, is_causal=True, varlen=None)
 ```
 - Does **not** use block masking but still benefits from **tiling and fused ops** for efficiency.
 - Requires **less memory** than the block-masked version.
