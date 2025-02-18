@@ -11,6 +11,7 @@ setup(
     url="https://github.com/deep-spin/adasplash",
     packages=find_packages(),
     install_requires=[
+        "numpy",
         "torch",
         "triton",
     ],
