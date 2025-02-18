@@ -3,14 +3,7 @@
 [![PyPI version](https://badge.fury.io/py/adasplash.svg)](https://badge.fury.io/py/adasplash)
 
 AdaSplash, aka flash entmax attention, is an efficient adaptive sparse attention mechanism implemented in Triton.
-
-Paper: https://arxiv.org/abs/2502.12082
-
-## Features
-- **Optimized Entmax (triton_entmax):** A Triton-accelerated implementation of Entmax, using Halley's method with bisection instead of pure bisection.
-- **AdaSplash with block masking (adasplash):** Uses adaptive sparsity to improve efficiency, requiring extra memory for storing a binary mask.
-- **AdaSplash without block masking (adasplash_no_block_mask):** A more memory-efficient variant that maintains efficiency through tiling and fused operations.
-- **Fully compatible with PyTorch** and optimized for GPU execution.
+Check out our paper: https://arxiv.org/abs/2502.12082.
 
 ## Installation
 
@@ -88,7 +81,7 @@ output = adasplash(q, k, v, is_causal=False)  # Non-causal masking
 
 ![Benchmark](benchmark.png)
 
-We use α = 1.5 for α-entmax based methods (Bisection and AdaSplash).
+
 
 ## Testing
 To ensure the library works as expected, install the development dependencies and run tests:
