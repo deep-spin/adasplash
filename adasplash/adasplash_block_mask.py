@@ -1,9 +1,9 @@
-import triton
+from math import sqrt
+
 import torch
 
+import triton
 import triton.language as tl
-
-from math import sqrt
 
 
 @triton.jit
@@ -966,7 +966,8 @@ class _sparse_attention(torch.autograd.Function):
         grid_tau = (mblocks, N_H, B)
 
         ## -- allocate bmask --
-        ## TODO: alternatively pass this as a argument, however it needs to be fixed size to the MAX_LEN possible (power of two)
+        ## TODO: alternatively pass this as a argument,
+        #        however it needs to be fixed size to the MAX_LEN possible (power of two)
         bmask = torch.zeros((B, N_H, nblocks, mblocks_tiny), device=device, dtype=torch.bool,).contiguous()  # fmt: skip
 
         _get_tau[grid_tau](
@@ -1008,7 +1009,9 @@ class _sparse_attention(torch.autograd.Function):
         nblocks = triton.cdiv(MAX_CTX, BLOCK_N)
         grid_out = (mblocks, N_H, B)
 
-        q_bidxs, q_cubcount, kv_bidxs, kv_cubcount = compute_bidxs_and_cubcounts(bmask, B, N_H, mblocks, nblocks, NEED_BACKWARD=NEED_BACKWARD)  # fmt: skip
+        q_bidxs, q_cubcount, kv_bidxs, kv_cubcount = compute_bidxs_and_cubcounts(
+            bmask, B, N_H, mblocks, nblocks, NEED_BACKWARD=NEED_BACKWARD
+        )  # fmt: skip
 
         out = torch.zeros_like(q).contiguous()
         out2 = torch.zeros_like(q).contiguous() if NEED_BACKWARD else None
@@ -1069,9 +1072,7 @@ class _sparse_attention(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, do):
-        q, k, v, o, taus, varlen, kv_bidxs, kv_cubcount, q_bidxs, q_cubcount = (
-            ctx.saved_tensors
-        )
+        q, k, v, o, taus, varlen, kv_bidxs, kv_cubcount, q_bidxs, q_cubcount = ctx.saved_tensors
 
         ## -- constants and flags--
         B, N_H, _, H_DIM = q.shape

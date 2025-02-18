@@ -1,9 +1,9 @@
-import triton
+from math import sqrt
+
 import torch
 
+import triton
 import triton.language as tl
-
-from math import sqrt
 
 
 @triton.jit
