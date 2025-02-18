@@ -5,6 +5,7 @@
 
 AdaSplash, aka flash entmax attention, is an efficient adaptive sparse attention mechanism implemented in Triton.
 
+Paper: https://arxiv.org/abs/2502.12082
 
 ## Features
 - **Optimized Entmax (triton_entmax):** A Triton-accelerated implementation of Entmax, using Halley's method with bisection instead of pure bisection.
