@@ -63,6 +63,33 @@ output = adasplash_no_block_mask(q, k, v, alpha=1.5, niter=10, is_causal=True, v
 - Does **not** use block masking but still benefits from **tiling and fused ops** for efficiency.
 - Requires **less memory** than the block-masked version.
 
+### Key Features
+
+Variable Length Sequences:
+```python
+varlen = torch.tensor([34, 128], device='cuda')  # Actual sequence lengths
+output = adasplash(q, k, v, varlen=varlen)
+```
+
+Adaptive Sparsity Control:
+```python
+# Control sparsity via alpha parameter
+output = adasplash(q, k, v, alpha=1.333)  # More dense
+output = adasplash(q, k, v, alpha=2.0)  # More sparse
+```
+
+Causal and Non-causal Masking:
+```python
+output = adasplash(q, k, v, is_causal=True)  # Causal masking
+output = adasplash(q, k, v, is_causal=False)  # Non-causal masking
+```
+
+## Benchmark
+
+![Benchmark](benchmark.png)
+
+We use α = 1.5 for α-entmax based methods (Bisection and AdaSplash).
+
 ## Testing
 To ensure the library works as expected, install the development dependencies and run tests:
 
