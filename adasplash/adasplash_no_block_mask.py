@@ -827,6 +827,11 @@ def ASSERT_VARLEN(varlen, N_CTX):
         assert varlen.dim() == 1, "varlen must be a one-dimensional tensor."
 
 
+@torch.compiler.disable
+def compute_varlen_max(varlen):
+    return int(varlen.max().item())
+
+
 class _sparse_attention(torch.autograd.Function):
 
     @staticmethod
@@ -847,7 +852,7 @@ class _sparse_attention(torch.autograd.Function):
 
         MAX_CTX = N_CTX
         if IS_VARLEN:
-            MAX_CTX = int(varlen.max().cpu())
+            MAX_CTX = compute_varlen_max(varlen)
 
         ## -- tensors --
         taus = torch.zeros((B, N_H, MAX_CTX), device=device, dtype=torch.float32).contiguous()  # fmt: skip
@@ -954,7 +959,9 @@ class _sparse_attention(torch.autograd.Function):
         IS_VARLEN = ctx.IS_VARLEN
         MAX_CTX = ctx.MAX_CTX
 
-        ASSERT_CONTIGUOUS(do, msg="Output gradient needs to be contiguous.")
+        # ASSERT_CONTIGUOUS(do, msg="Output gradient needs to be contiguous.")
+        if not do.is_contiguous():
+            do = do.contiguous()
 
         ## -- grid: preprocess --
         PRE_BLOCK = 128

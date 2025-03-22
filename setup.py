@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="adasplash",
-    version="0.1.1a",
+    version="0.1.1b",
     author="Nuno Gonçalves, Marcos Treviso",
     author_email="marcosvtreviso@gmail.com",
     description="AdaSplash: Efficient Adaptive Sparse Attention in Triton",
