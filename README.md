@@ -1,6 +1,7 @@
 # AdaSplash: Adaptive Sparse Flash Attention
 
-[![PyPI version](https://badge.fury.io/py/adasplash.svg)](https://badge.fury.io/py/adasplash)
+[![PyPI version](https://img.shields.io/pypi/v/adasplash.svg)](https://pypi.org/project/adasplash/)
+[![Hugging Face models](https://img.shields.io/badge/Hugging%20Face-sardinelab-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/sardinelab/)
 
 AdaSplash, aka flash entmax attention, is an efficient adaptive sparse attention mechanism implemented in Triton.
 Check out the AdaSplash paper: https://arxiv.org/abs/2502.12082.
