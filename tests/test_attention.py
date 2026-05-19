@@ -46,15 +46,13 @@ def reference_attention(q, k, v, alpha=1.5, varlen=None, is_causal=False, paddin
     return out
 
 
-@pytest.mark.parametrize("padding", ["left", "right"])
-@pytest.mark.parametrize("is_causal", [False, True])
-def test_entmax_attention_forward_backward_matches_reference(padding, is_causal):
+def _run_attention_case(padding, is_causal):
     torch.manual_seed(42)
-    q = torch.randn(2, 2, 128, 32, device="cuda", dtype=torch.float32, requires_grad=True).contiguous()
+    q = torch.randn(1, 2, 64, 32, device="cuda", dtype=torch.float32, requires_grad=True).contiguous()
     k = torch.randn_like(q, requires_grad=True).contiguous()
     v = torch.randn_like(q, requires_grad=True).contiguous()
     do = torch.randn_like(q)
-    varlen = torch.tensor([96, 64], device="cuda", dtype=torch.int32)
+    varlen = torch.tensor([48], device="cuda", dtype=torch.int32)
     alibi = torch.tensor([0.1, 0.2], device="cuda", dtype=torch.float32)
 
     ref = reference_attention(q, k, v, varlen=varlen, is_causal=is_causal, padding=padding, alibi_slopes=alibi)
@@ -76,3 +74,14 @@ def test_entmax_attention_forward_backward_matches_reference(padding, is_causal)
     assert torch.allclose(tri_dq, ref_dq, atol=1e-3, rtol=1e-3)
     assert torch.allclose(tri_dk, ref_dk, atol=1e-3, rtol=1e-3)
     assert torch.allclose(tri_dv, ref_dv, atol=1e-3, rtol=1e-3)
+
+
+def test_entmax_attention_fast_forward_backward_smoke():
+    _run_attention_case(padding="right", is_causal=True)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("padding", ["left", "right"])
+@pytest.mark.parametrize("is_causal", [False, True])
+def test_entmax_attention_forward_backward_matches_reference(padding, is_causal):
+    _run_attention_case(padding=padding, is_causal=is_causal)

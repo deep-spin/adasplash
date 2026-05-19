@@ -36,6 +36,50 @@ def reference_attention_varlen(q, k, v, varlen):
     return out
 
 
+def test_v2_fast_forward_backward_smoke():
+    torch.manual_seed(42)
+    q = torch.randn(1, 1, 256, 64, device="cuda", dtype=torch.float32, requires_grad=True).contiguous()
+    k = torch.randn_like(q, requires_grad=True).contiguous()
+    v = torch.randn_like(q, requires_grad=True).contiguous()
+    do = torch.randn_like(q)
+
+    ref = reference_attention(q, k, v)
+    ref_dq, ref_dk, ref_dv = torch.autograd.grad(ref, (q, k, v), do)
+
+    out = sparse_attn(q, k, v, niter=10)
+    tri_dq, tri_dk, tri_dv = torch.autograd.grad(out, (q, k, v), do)
+
+    assert torch.allclose(out, ref, atol=1e-4, rtol=1e-4)
+    assert torch.allclose(tri_dq, ref_dq, atol=1e-4, rtol=1e-4)
+    assert torch.allclose(tri_dk, ref_dk, atol=1e-4, rtol=1e-4)
+    assert torch.allclose(tri_dv, ref_dv, atol=1e-4, rtol=1e-4)
+
+
+def test_v2_fast_varlen_gqa_smoke():
+    torch.manual_seed(42)
+    q = torch.randn(1, 2, 256, 64, device="cuda", dtype=torch.float32, requires_grad=True).contiguous()
+    k = torch.randn(1, 1, 256, 64, device="cuda", dtype=torch.float32, requires_grad=True).contiguous()
+    v = torch.randn_like(k, requires_grad=True).contiguous()
+    do = torch.randn_like(q)
+    varlen = torch.tensor([160], device="cuda", dtype=torch.int32)
+
+    k_rep = k.repeat_interleave(2, dim=1).contiguous()
+    v_rep = v.repeat_interleave(2, dim=1).contiguous()
+    ref = reference_attention_varlen(q, k_rep, v_rep, varlen)
+    ref_dq, ref_dk_rep, ref_dv_rep = torch.autograd.grad(ref, (q, k_rep, v_rep), do)
+    ref_dk = ref_dk_rep.view(1, 1, 2, 256, 64).sum(dim=2)
+    ref_dv = ref_dv_rep.view(1, 1, 2, 256, 64).sum(dim=2)
+
+    out = sparse_attn(q, k, v, niter=10, varlen=varlen)
+    tri_dq, tri_dk, tri_dv = torch.autograd.grad(out, (q, k, v), do)
+
+    assert torch.allclose(out[:, :, :160], ref[:, :, :160], atol=1e-4, rtol=1e-4)
+    assert torch.allclose(tri_dq[:, :, :160], ref_dq[:, :, :160], atol=1e-4, rtol=1e-4)
+    assert torch.allclose(tri_dk[:, :, :160], ref_dk[:, :, :160], atol=1e-4, rtol=1e-4)
+    assert torch.allclose(tri_dv[:, :, :160], ref_dv[:, :, :160], atol=1e-4, rtol=1e-4)
+
+
+@pytest.mark.slow
 @pytest.mark.parametrize("seq_len", [1024, 2048, 4096])
 def test_forward_matches_reference(seq_len):
     """Forward pass of adasplash_v2 must match entmax_bisect reference in fp32."""
@@ -57,6 +101,7 @@ def test_forward_matches_reference(seq_len):
     )
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("seq_len", [1024, 2048, 4096])
 def test_backward_matches_reference(seq_len):
     """Backward pass gradients must match entmax_bisect's autograd in fp32."""
@@ -150,6 +195,7 @@ def test_backward_matches_reference_long_context(seq_len):
     )
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "n_ctx,varlen_list",
     [
@@ -182,6 +228,7 @@ def test_forward_varlen_matches_reference(n_ctx, varlen_list):
         assert diff < 1e-4, f"forward mismatch at batch={b}, varlen={L}, n_ctx={n_ctx}: " f"max abs diff = {diff:.3e}"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "n_ctx,varlen_list",
     [
@@ -227,6 +274,7 @@ def test_backward_varlen_matches_reference(n_ctx, varlen_list):
         assert diff_dv < 1e-4, f"dv mismatch at batch={b}, varlen={L}: {diff_dv:.3e}"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("n_kv_h", [1, 2, 4, 8])
 @pytest.mark.parametrize("seq_len", [1024, 2048])
 def test_forward_gqa_matches_reference(seq_len, n_kv_h):
@@ -252,6 +300,7 @@ def test_forward_gqa_matches_reference(seq_len, n_kv_h):
     assert diff < 1e-4, f"forward GQA mismatch at seq_len={seq_len}, n_kv_h={n_kv_h}: " f"max abs diff = {diff:.3e}"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("n_kv_h", [1, 2, 4, 8])
 @pytest.mark.parametrize("seq_len", [1024, 2048])
 def test_backward_gqa_matches_reference(seq_len, n_kv_h):
@@ -301,6 +350,7 @@ def _gqa_varlen_reference(q, k, v, varlen, group_size):
     return out
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("n_kv_h", [1, 2, 4])
 @pytest.mark.parametrize(
     "n_ctx,varlen_list",

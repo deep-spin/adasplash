@@ -62,6 +62,27 @@ def reference_attention(q, k, v, alpha=1.5, varlen=None, is_causal=False):
     return out
 
 
+def test_v1_no_block_mask_fast_forward_backward_smoke():
+    torch.manual_seed(42)
+    q = torch.randn(1, 1, 128, 32, device="cuda", dtype=torch.float32, requires_grad=True).contiguous()
+    k = torch.randn_like(q, requires_grad=True).contiguous()
+    v = torch.randn_like(q, requires_grad=True).contiguous()
+    do = torch.randn_like(q)
+    varlen = torch.tensor([96], device="cuda")
+
+    ref = reference_attention(q, k, v, alpha=1.5, varlen=varlen, is_causal=True)
+    ref_dq, ref_dk, ref_dv = torch.autograd.grad(ref, (q, k, v), do)
+
+    out = sparse_attn(q, k, v, alpha=1.5, varlen=varlen, is_causal=True)
+    tri_dq, tri_dk, tri_dv = torch.autograd.grad(out, (q, k, v), do)
+
+    assert torch.allclose(out, ref, atol=1e-4, rtol=1e-4)
+    assert torch.allclose(tri_dq, ref_dq, atol=1e-2, rtol=1e-2)
+    assert torch.allclose(tri_dk, ref_dk, atol=1e-2, rtol=1e-2)
+    assert torch.allclose(tri_dv, ref_dv, atol=1e-2, rtol=1e-2)
+
+
+@pytest.mark.slow
 @pytest.mark.parametrize("batch_size", [1, 2])
 @pytest.mark.parametrize("n_heads", [1, 2])
 @pytest.mark.parametrize("seq_len", [128, 256])
@@ -93,6 +114,7 @@ def test_forward_correctness(batch_size, n_heads, seq_len, head_dim, alpha, is_c
     assert torch.allclose(tri_out, ref_out, atol=atol)
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("seq_len", [256, 512])
 @pytest.mark.parametrize("alpha", [1.5, 2.0])
 def test_backward_gradients(seq_len, alpha):
@@ -124,6 +146,7 @@ def test_backward_gradients(seq_len, alpha):
     assert torch.allclose(tri_dv, ref_dv, atol=1e-2), "v gradients mismatch"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("seq_len", [512, 1024])
 def test_numerical_stability(seq_len):
     """Test for numerical stability and output properties"""
@@ -147,6 +170,7 @@ def test_numerical_stability(seq_len):
     assert out.abs().max() < 1e3, "Output values too large"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("seq_len", [64, 128])
 def test_simple_case(seq_len):
     """Test simple case"""
@@ -160,6 +184,7 @@ def test_simple_case(seq_len):
     assert torch.allclose(out, ref, atol=1e-4), "All zeros input failed"
 
 
+@pytest.mark.slow
 def test_variable_length_handling():
     """Test proper handling of variable sequence lengths"""
     B, N_H, N_CTX, H_DIM = 2, 1, 256, 64
@@ -176,6 +201,7 @@ def test_variable_length_handling():
         assert (out[i, :, varlen[i] :] == 0).all(), "Padding not zeroed out"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("max_seqlen", [512, 1024])
 def test_large_sequences(max_seqlen):
     """Stress test with large sequence lengths"""
