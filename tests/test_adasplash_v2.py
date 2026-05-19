@@ -9,6 +9,19 @@ from adasplash import adasplash_v2 as sparse_attn
 pytestmark = pytest.mark.gpu
 
 
+def _skip_hdim64_backward_if_low_shared_memory():
+    props = torch.cuda.get_device_properties(torch.cuda.current_device())
+    max_shared = max(
+        getattr(props, "shared_memory_per_block", 0),
+        getattr(props, "shared_memory_per_block_optin", 0),
+    )
+    if max_shared < 81920:
+        pytest.skip(
+            "AdaSplash-2 H_DIM=64 backward currently compiles a kernel requiring "
+            f"81920 bytes shared memory; this device exposes {max_shared} bytes."
+        )
+
+
 def reference_attention(q, k, v):
     """Reference using entmax_bisect with alpha=1.5, causal masking."""
     B, N_H, N_CTX, H_DIM = q.shape
@@ -105,6 +118,7 @@ def test_forward_matches_reference(seq_len):
 @pytest.mark.parametrize("seq_len", [1024, 2048, 4096])
 def test_backward_matches_reference(seq_len):
     """Backward pass gradients must match entmax_bisect's autograd in fp32."""
+    _skip_hdim64_backward_if_low_shared_memory()
     torch.manual_seed(42)
     B, N_H, H_DIM = 2, 2, 64
     dtype = torch.float32
@@ -137,7 +151,7 @@ def test_backward_matches_reference(seq_len):
 
 
 @pytest.mark.parametrize("seq_len", [16384, 32768])
-@pytest.mark.slow
+@pytest.mark.stress
 def test_forward_matches_reference_long_context(seq_len):
     """Forward pass of adasplash_v2 must match entmax_bisect reference in fp32
     at long contexts (basic causal MHA, no varlen, no GQA)."""
@@ -160,7 +174,7 @@ def test_forward_matches_reference_long_context(seq_len):
 
 
 @pytest.mark.parametrize("seq_len", [16384, 32768])
-@pytest.mark.slow
+@pytest.mark.stress
 def test_backward_matches_reference_long_context(seq_len):
     """Backward pass gradients must match entmax_bisect's autograd in fp32
     at long contexts (basic causal MHA, no varlen, no GQA)."""
@@ -241,6 +255,7 @@ def test_forward_varlen_matches_reference(n_ctx, varlen_list):
 )
 def test_backward_varlen_matches_reference(n_ctx, varlen_list):
     """Backward gradients with per-batch varlen must match entmax_bisect's autograd on valid rows."""
+    _skip_hdim64_backward_if_low_shared_memory()
     torch.manual_seed(42)
     B = len(varlen_list)
     N_H, H_DIM = 2, 64
@@ -306,6 +321,7 @@ def test_forward_gqa_matches_reference(seq_len, n_kv_h):
 def test_backward_gqa_matches_reference(seq_len, n_kv_h):
     """Backward GQA gradients must match the reference, with dk/dv reduced
     across each group of Q heads sharing a KV head."""
+    _skip_hdim64_backward_if_low_shared_memory()
     torch.manual_seed(42)
     B, N_H, H_DIM = 2, 8, 64
     assert N_H % n_kv_h == 0
@@ -361,6 +377,7 @@ def _gqa_varlen_reference(q, k, v, varlen, group_size):
 )
 def test_gqa_varlen_matches_reference(n_ctx, varlen_list, n_kv_h):
     """Forward+backward GQA with per-batch varlen must match the replicated reference."""
+    _skip_hdim64_backward_if_low_shared_memory()
     torch.manual_seed(42)
     B = len(varlen_list)
     N_H, H_DIM = 8, 64

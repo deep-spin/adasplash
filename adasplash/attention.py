@@ -62,6 +62,7 @@ def entmax_attention(q, k, v, alpha=1.5, varlen=None, is_causal=False, padding="
         scores = scores.masked_fill(~key_mask[:, None, None, :], float("-inf"))
         if q_len == k_len:
             output_mask = _varlen_mask(varlen.to(q.device), q_len, padding)[:, None, :, None]
+            scores = scores.masked_fill(~output_mask, 0.0)
 
     from .triton_entmax_v2 import triton_entmax
 

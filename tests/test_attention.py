@@ -38,6 +38,7 @@ def reference_attention(q, k, v, alpha=1.5, varlen=None, is_causal=False, paddin
         scores = scores.masked_fill(~key_mask[:, None, None, :], float("-inf"))
         if q_len == k_len:
             output_mask = _varlen_mask(varlen, q_len, padding)[:, None, :, None]
+            scores = scores.masked_fill(~output_mask, 0.0)
 
     probs = entmax_bisect(scores.float(), alpha=alpha).to(q.dtype)
     out = torch.matmul(probs, v)
