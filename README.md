@@ -215,9 +215,11 @@ pytest -q -m "stress"
 
 ## Benchmarks And Models
 
-### Efficiency
+### Efficiency AdaSplash-1
+![Benchmark AdaSplash-1](benchmark.png)
 
-![Benchmark](benchmark.png)
+### Efficiency AdaSplash-2
+![Benchmark AdaSplash-2](benchmark2.png)
 
 ### Sparse Models
 
