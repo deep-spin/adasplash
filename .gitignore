@@ -174,3 +174,4 @@ cython_debug/
 triton/
 notebooks/
 pypi.txt
+PyPI-Recovery-Codes*.txt

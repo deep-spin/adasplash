@@ -1,8 +1,16 @@
+import os
+
 import torch
 
 import triton
 import triton.language as tl
 from triton.language.extra.libdevice import fast_powf
+
+
+def _autotune(*args, **kwargs):
+    if os.environ.get("TRITON_INTERPRET", "0") == "1":
+        return lambda fn: fn
+    return triton.autotune(*args, **kwargs)
 
 
 def get_configs():
@@ -35,7 +43,7 @@ def _masked_pow(x, x_mask, coeff, FAST_MATH: tl.constexpr):
         return tl.where(x_mask, tl.exp2(x * coeff), 0)
 
 
-@triton.autotune(configs=get_configs(), key=["SIZE_N", "FAST_MATH", "N_ITER"])
+@_autotune(configs=get_configs(), key=["SIZE_N", "FAST_MATH", "N_ITER"])
 @triton.jit
 def _fwd_entmax(
     X,
@@ -137,7 +145,7 @@ def _fwd_entmax(
         tl.store(Y + curr_offsets, y, mask=load_mask)
 
 
-@triton.autotune(configs=get_configs(), key=["SIZE_N", "FAST_MATH"])
+@_autotune(configs=get_configs(), key=["SIZE_N", "FAST_MATH"])
 @triton.jit
 def _bwd_entmax(
     Y,
@@ -245,7 +253,7 @@ class _entmax_triton(torch.autograd.Function):
         y = torch.zeros_like(x).contiguous()
 
         # Define grid size for Triton kernel launch
-        grid = (x.shape[:-1].numel(), 1, 1)
+        grid = (x.numel() // SIZE_N, 1, 1)
 
         # Kernel launch
         _fwd_entmax[grid](
@@ -289,7 +297,7 @@ class _entmax_triton(torch.autograd.Function):
         dx = torch.zeros_like(dy).contiguous()
 
         # Define grid size for Triton kernel launch
-        grid = (y.shape[:-1].numel(), 1, 1)
+        grid = (y.numel() // SIZE_N, 1, 1)
 
         # Kernel launch
         _bwd_entmax[grid](

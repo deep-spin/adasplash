@@ -6,6 +6,8 @@ from entmax import entmax_bisect
 
 from adasplash import adasplash_v2 as sparse_attn
 
+pytestmark = pytest.mark.gpu
+
 
 def reference_attention(q, k, v):
     """Reference using entmax_bisect with alpha=1.5, causal masking."""
@@ -51,8 +53,7 @@ def test_forward_matches_reference(seq_len):
     tri_out = sparse_attn(q, k, v, niter=10)
 
     assert torch.allclose(tri_out, ref_out, atol=1e-4), (
-        f"forward mismatch at seq_len={seq_len}: "
-        f"max abs diff = {(tri_out - ref_out).abs().max().item():.3e}"
+        f"forward mismatch at seq_len={seq_len}: " f"max abs diff = {(tri_out - ref_out).abs().max().item():.3e}"
     )
 
 
@@ -80,19 +81,18 @@ def test_backward_matches_reference(seq_len):
     tri_dq, tri_dk, tri_dv = q.grad.clone(), k.grad.clone(), v.grad.clone()
 
     assert torch.allclose(tri_dq, ref_dq, atol=1e-4), (
-        f"dq mismatch at seq_len={seq_len}: "
-        f"max abs diff = {(tri_dq - ref_dq).abs().max().item():.3e}"
+        f"dq mismatch at seq_len={seq_len}: " f"max abs diff = {(tri_dq - ref_dq).abs().max().item():.3e}"
     )
     assert torch.allclose(tri_dk, ref_dk, atol=1e-4), (
-        f"dk mismatch at seq_len={seq_len}: "
-        f"max abs diff = {(tri_dk - ref_dk).abs().max().item():.3e}"
+        f"dk mismatch at seq_len={seq_len}: " f"max abs diff = {(tri_dk - ref_dk).abs().max().item():.3e}"
     )
     assert torch.allclose(tri_dv, ref_dv, atol=1e-4), (
-        f"dv mismatch at seq_len={seq_len}: "
-        f"max abs diff = {(tri_dv - ref_dv).abs().max().item():.3e}"
+        f"dv mismatch at seq_len={seq_len}: " f"max abs diff = {(tri_dv - ref_dv).abs().max().item():.3e}"
     )
 
+
 @pytest.mark.parametrize("seq_len", [16384, 32768])
+@pytest.mark.slow
 def test_forward_matches_reference_long_context(seq_len):
     """Forward pass of adasplash_v2 must match entmax_bisect reference in fp32
     at long contexts (basic causal MHA, no varlen, no GQA)."""
@@ -110,12 +110,12 @@ def test_forward_matches_reference_long_context(seq_len):
     tri_out = sparse_attn(q, k, v, niter=10)
 
     assert torch.allclose(tri_out, ref_out, atol=1e-4), (
-        f"forward mismatch at seq_len={seq_len}: "
-        f"max abs diff = {(tri_out - ref_out).abs().max().item():.3e}"
+        f"forward mismatch at seq_len={seq_len}: " f"max abs diff = {(tri_out - ref_out).abs().max().item():.3e}"
     )
 
 
 @pytest.mark.parametrize("seq_len", [16384, 32768])
+@pytest.mark.slow
 def test_backward_matches_reference_long_context(seq_len):
     """Backward pass gradients must match entmax_bisect's autograd in fp32
     at long contexts (basic causal MHA, no varlen, no GQA)."""
@@ -140,16 +140,13 @@ def test_backward_matches_reference_long_context(seq_len):
     tri_dq, tri_dk, tri_dv = q.grad.clone(), k.grad.clone(), v.grad.clone()
 
     assert torch.allclose(tri_dq, ref_dq, atol=1e-4), (
-        f"dq mismatch at seq_len={seq_len}: "
-        f"max abs diff = {(tri_dq - ref_dq).abs().max().item():.3e}"
+        f"dq mismatch at seq_len={seq_len}: " f"max abs diff = {(tri_dq - ref_dq).abs().max().item():.3e}"
     )
     assert torch.allclose(tri_dk, ref_dk, atol=1e-4), (
-        f"dk mismatch at seq_len={seq_len}: "
-        f"max abs diff = {(tri_dk - ref_dk).abs().max().item():.3e}"
+        f"dk mismatch at seq_len={seq_len}: " f"max abs diff = {(tri_dk - ref_dk).abs().max().item():.3e}"
     )
     assert torch.allclose(tri_dv, ref_dv, atol=1e-4), (
-        f"dv mismatch at seq_len={seq_len}: "
-        f"max abs diff = {(tri_dv - ref_dv).abs().max().item():.3e}"
+        f"dv mismatch at seq_len={seq_len}: " f"max abs diff = {(tri_dv - ref_dv).abs().max().item():.3e}"
     )
 
 
@@ -182,10 +179,7 @@ def test_forward_varlen_matches_reference(n_ctx, varlen_list):
 
     for b, L in enumerate(varlen_list):
         diff = (tri_out[b, :, :L, :] - ref_out[b, :, :L, :]).abs().max().item()
-        assert diff < 1e-4, (
-            f"forward mismatch at batch={b}, varlen={L}, n_ctx={n_ctx}: "
-            f"max abs diff = {diff:.3e}"
-        )
+        assert diff < 1e-4, f"forward mismatch at batch={b}, varlen={L}, n_ctx={n_ctx}: " f"max abs diff = {diff:.3e}"
 
 
 @pytest.mark.parametrize(
@@ -233,8 +227,6 @@ def test_backward_varlen_matches_reference(n_ctx, varlen_list):
         assert diff_dv < 1e-4, f"dv mismatch at batch={b}, varlen={L}: {diff_dv:.3e}"
 
 
-
-
 @pytest.mark.parametrize("n_kv_h", [1, 2, 4, 8])
 @pytest.mark.parametrize("seq_len", [1024, 2048])
 def test_forward_gqa_matches_reference(seq_len, n_kv_h):
@@ -257,10 +249,7 @@ def test_forward_gqa_matches_reference(seq_len, n_kv_h):
     tri_out = sparse_attn(q, k, v, niter=10)
 
     diff = (tri_out - ref_out).abs().max().item()
-    assert diff < 1e-4, (
-        f"forward GQA mismatch at seq_len={seq_len}, n_kv_h={n_kv_h}: "
-        f"max abs diff = {diff:.3e}"
-    )
+    assert diff < 1e-4, f"forward GQA mismatch at seq_len={seq_len}, n_kv_h={n_kv_h}: " f"max abs diff = {diff:.3e}"
 
 
 @pytest.mark.parametrize("n_kv_h", [1, 2, 4, 8])
@@ -293,10 +282,7 @@ def test_backward_gqa_matches_reference(seq_len, n_kv_h):
 
     for name, t, r in (("dq", tri_dq, ref_dq), ("dk", tri_dk, ref_dk), ("dv", tri_dv, ref_dv)):
         diff = (t - r).abs().max().item()
-        assert diff < 1e-4, (
-            f"{name} GQA mismatch at seq_len={seq_len}, n_kv_h={n_kv_h}: "
-            f"max abs diff = {diff:.3e}"
-        )
+        assert diff < 1e-4, f"{name} GQA mismatch at seq_len={seq_len}, n_kv_h={n_kv_h}: " f"max abs diff = {diff:.3e}"
 
 
 def _gqa_varlen_reference(q, k, v, varlen, group_size):
@@ -308,7 +294,9 @@ def _gqa_varlen_reference(q, k, v, varlen, group_size):
         kb = k[b : b + 1, :, :L, :].repeat_interleave(group_size, dim=1).contiguous()
         vb = v[b : b + 1, :, :L, :].repeat_interleave(group_size, dim=1).contiguous()
         out[b : b + 1, :, :L, :] = reference_attention(
-            q[b : b + 1, :, :L, :].contiguous(), kb, vb,
+            q[b : b + 1, :, :L, :].contiguous(),
+            kb,
+            vb,
         )
     return out
 
@@ -350,7 +338,6 @@ def test_gqa_varlen_matches_reference(n_ctx, varlen_list, n_kv_h):
             f"forward GQA varlen mismatch at batch={b}, varlen={L}, "
             f"n_ctx={n_ctx}, n_kv_h={n_kv_h}: max abs diff = {diff:.3e}"
         )
-
 
     k_rep = k.repeat_interleave(group_size, dim=1)
     v_rep = v.repeat_interleave(group_size, dim=1)

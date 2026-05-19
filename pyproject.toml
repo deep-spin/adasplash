@@ -4,3 +4,12 @@ line-length = 120
 [tool.isort]
 profile = "black"
 line_length = 120
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["triton", "env", "build", "dist"]
+markers = [
+    "gpu: requires a CUDA-capable GPU",
+    "slow: longer GPU correctness or stress tests",
+    "stress: very large memory stress tests",
+]

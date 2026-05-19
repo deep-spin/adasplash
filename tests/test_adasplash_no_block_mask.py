@@ -6,6 +6,8 @@ from entmax import entmax_bisect
 
 from adasplash import adasplash_no_block_mask as sparse_attn
 
+pytestmark = pytest.mark.gpu
+
 
 def mask_from_varlen(varlen, N_CTX):
     """Create attention mask from variable length tensor"""

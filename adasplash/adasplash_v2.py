@@ -1,4 +1,5 @@
 from math import sqrt
+import os
 
 import torch
 
@@ -6,7 +7,14 @@ import triton
 import triton.language as tl
 from triton.language.extra.libdevice import float2int_rd, popc
 
-DEBUG = True
+DEBUG = False
+
+
+def _autotune(*args, **kwargs):
+    if os.environ.get("TRITON_INTERPRET", "0") == "1":
+        return lambda fn: fn
+    return triton.autotune(*args, **kwargs)
+
 
 def get_config():
     global DEBUG
@@ -140,7 +148,7 @@ def get_qk_t(
     return qk
 
 
-@triton.autotune(
+@_autotune(
     configs=get_config(),
     restore_value=["TAUS"],
     key=["N_CTX", "H_DIM"],
@@ -216,7 +224,6 @@ def _get_tau(
         q = tl.load(q_ptrs) * _scalar
     q = q.to(input_dtype)
 
-
     masked_nblocks: tl.constexpr = tl.cdiv(BLOCK_M, BLOCK_N)
     if IS_VARLEN:
         up_to_seqlen = tl.minimum((start_m + 1) * BLOCK_M, seqlen)
@@ -282,7 +289,7 @@ def _select_bins(n_ctx: int, block_n: int) -> int:
     raise ValueError(f"N_CTX={n_ctx} too large for uint64 packed histogram")
 
 
-@triton.autotune(
+@_autotune(
     configs=get_config_v2(),
     restore_value=["TAUS"],
     key=["N_CTX", "H_DIM"],
@@ -460,7 +467,7 @@ def _get_tau_v2(
         tl.store(t_ptrs, t)
 
 
-@triton.autotune(
+@_autotune(
     configs=get_config_v2(),
     restore_value=["TAUS"],
     key=["N_CTX", "H_DIM"],
@@ -541,7 +548,6 @@ def _get_tau_v3(
     else:
         q = tl.load(q_ptrs) * _scalar
     q = q.to(input_dtype)
-
 
     masked_nblocks: tl.constexpr = tl.cdiv(BLOCK_M, BLOCK_N)
     if IS_VARLEN:
@@ -687,7 +693,7 @@ def get_next_block(bmask, n_blk):
     )
 
 
-@triton.autotune(
+@_autotune(
     configs=get_config_v2(),
     key=["N_CTX", "H_DIM"],
 )
@@ -811,9 +817,7 @@ def _get_output(
                 supp_size += tl.sum(qk_proj, axis=1)
                 out2 += tl.dot(qk_proj.to(input_dtype), v, input_precision="ieee")
 
-            out += tl.dot(
-                (qk_proj * qk_proj).to(input_dtype), v, input_precision="ieee"
-            )
+            out += tl.dot((qk_proj * qk_proj).to(input_dtype), v, input_precision="ieee")
     ## -- save output --
     out_ptrs = OUT + offsets_m[:, None] * H_DIM + offsets_k
     if IS_VARLEN:
@@ -936,7 +940,7 @@ def transpose_bmask(
             c_bmask = tl.zeros((32,), dtype=tl.int32)
 
 
-@triton.autotune(
+@_autotune(
     configs=get_config_v2(),
     key=["N_CTX", "H_DIM"],
 )
@@ -1075,7 +1079,7 @@ def _bwd_q_kernel(
         tl.store(dq_ptrs, dq.to(input_dtype))
 
 
-@triton.autotune(
+@_autotune(
     configs=get_config_v2(),
     key=["N_CTX", "H_DIM"],
 )
@@ -1199,9 +1203,7 @@ def _bwd_kv_kernel(
                     do = tl.load(do_ptrs + c_block * q_jump).to(input_dtype)
 
                 ## -- compute dv --
-                dv += tl.dot(
-                    tl.trans((qk_act * qk_act).to(input_dtype)), do, input_precision="ieee"
-                )
+                dv += tl.dot(tl.trans((qk_act * qk_act).to(input_dtype)), do, input_precision="ieee")
 
                 ## -- load delta --
                 if IS_VARLEN:
@@ -1246,16 +1248,11 @@ class _sparse_attention(torch.autograd.Function):
         assert H_DIM in {16, 32, 64, 128, 256}
 
         ## -- GQA: K/V may have fewer heads than Q (N_H = GROUP_SIZE * N_KV_H) --
-        assert k.shape == v.shape, (
-            f"K and V must share shape; got k.shape={tuple(k.shape)} v.shape={tuple(v.shape)}"
-        )
+        assert k.shape == v.shape, f"K and V must share shape; got k.shape={tuple(k.shape)} v.shape={tuple(v.shape)}"
         N_KV_H = k.shape[1]
-        assert N_KV_H >= 1 and N_H % N_KV_H == 0, (
-            f"N_H ({N_H}) must be a positive multiple of N_KV_H ({N_KV_H})."
-        )
+        assert N_KV_H >= 1 and N_H % N_KV_H == 0, f"N_H ({N_H}) must be a positive multiple of N_KV_H ({N_KV_H})."
         assert k.shape[0] == B and k.shape[2] == N_CTX and k.shape[3] == H_DIM, (
-            f"K/V must have shape (B={B}, N_KV_H, N_CTX={N_CTX}, H_DIM={H_DIM}); "
-            f"got {tuple(k.shape)}."
+            f"K/V must have shape (B={B}, N_KV_H, N_CTX={N_CTX}, H_DIM={H_DIM}); " f"got {tuple(k.shape)}."
         )
         GROUP_SIZE = N_H // N_KV_H
 
@@ -1265,20 +1262,14 @@ class _sparse_attention(torch.autograd.Function):
         IS_VARLEN = varlen is not None
 
         ## -- length constraints --
-        assert N_CTX >= BMASK_TILE, (
-            f"N_CTX={N_CTX} must be at least BMASK_TILE={BMASK_TILE}."
-        )
+        assert N_CTX >= BMASK_TILE, f"N_CTX={N_CTX} must be at least BMASK_TILE={BMASK_TILE}."
         if not IS_VARLEN:
-            assert (N_CTX & (N_CTX - 1)) == 0, (
-                "If varlen is None, N_CTX must be a power of two."
-            )
+            assert (N_CTX & (N_CTX - 1)) == 0, "If varlen is None, N_CTX must be a power of two."
         else:
-            assert varlen.dim() == 1 and varlen.shape[0] == B, (
-                f"varlen must be a 1-D tensor of shape (B={B},); got {tuple(varlen.shape)}."
-            )
-            assert varlen.dtype in (torch.int32, torch.int64), (
-                f"varlen must be int32/int64; got {varlen.dtype}."
-            )
+            assert (
+                varlen.dim() == 1 and varlen.shape[0] == B
+            ), f"varlen must be a 1-D tensor of shape (B={B},); got {tuple(varlen.shape)}."
+            assert varlen.dtype in (torch.int32, torch.int64), f"varlen must be int32/int64; got {varlen.dtype}."
             assert varlen.device == device, "varlen must be on the same device as q."
             assert varlen.is_contiguous(), "varlen must be contiguous."
 
@@ -1444,7 +1435,6 @@ class _sparse_attention(torch.autograd.Function):
         ctx.N_KV_H = N_KV_H
         ctx.GROUP_SIZE = GROUP_SIZE
 
-
         return out
 
     @staticmethod
@@ -1530,9 +1520,7 @@ class _sparse_attention(torch.autograd.Function):
         bmask_kv = torch.zeros_like(bmask)
         grid_transpose = (number_of_ints32, N_H, B)
 
-        transpose_bmask[grid_transpose](
-            bmask, bmask_kv, N_H, mblocks_padded, number_of_ints32, bmask.stride(1)
-        )
+        transpose_bmask[grid_transpose](bmask, bmask_kv, N_H, mblocks_padded, number_of_ints32, bmask.stride(1))
 
         if IS_VARLEN:
             dk = torch.zeros_like(k).contiguous()

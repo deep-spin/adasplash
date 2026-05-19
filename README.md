@@ -3,7 +3,8 @@
 [![PyPI version](https://badge.fury.io/py/adasplash.svg)](https://badge.fury.io/py/adasplash)
 
 AdaSplash, aka flash entmax attention, is an efficient adaptive sparse attention mechanism implemented in Triton.
-Check out our paper: https://arxiv.org/abs/2502.12082.
+Check out the AdaSplash paper: https://arxiv.org/abs/2502.12082.
+AdaSplash-2 is based on the follow-up paper: https://arxiv.org/abs/2604.15180.
 
 ## Installation
 
@@ -21,31 +22,37 @@ pip install git+https://github.com/deep-spin/adasplash.git
 
 ## Usage
 
-AdaSplash provides three main functions, all available via `from adasplash import ...`:
+AdaSplash exposes v2 as the default direction while preserving explicit v1 entry points.
+All functions are available via `from adasplash import ...`.
 
 ### **Triton Entmax** (Optimized Entmax Activation)
 ```python
-from adasplash import triton_entmax
+from adasplash import triton_entmax, triton_entmax_v1
 import torch
 
 x = torch.randn(128, 256).cuda()
-y = triton_entmax(x, alpha=1.5, n_iter=10, fast_math=True)
+y = triton_entmax(x, alpha=1.5, n_iter=2, use_histogram=True)
+y_v1 = triton_entmax_v1(x, alpha=1.5, n_iter=10, fast_math=True)
 ```
-- Uses **Halley's method + bisection** instead of pure bisection.
+- `triton_entmax` uses the v2 histogram initialization and hybrid solver.
+- `triton_entmax_v1` preserves the original Halley/bisection implementation.
 - Faster and more efficient than traditional Entmax implementations.
 
-### **AdaSplash with Block Masking**
+### **AdaSplash**
 ```python
-from adasplash import adasplash
+from adasplash import adasplash, adasplash_v1, adasplash_v2
 
 q = torch.randn(1, 8, 128, 64, device="cuda")
 k = torch.randn(1, 8, 128, 64, device="cuda")
 v = torch.randn(1, 8, 128, 64, device="cuda")
 
-output = adasplash(q, k, v, alpha=1.5, niter=10, is_causal=True, varlen=None)
+output = adasplash(q, k, v, is_causal=True, varlen=None)
+output_v1 = adasplash_v1(q, k, v, alpha=1.5, niter=10, is_causal=True, varlen=None)
+output_v2 = adasplash_v2(q, k, v, niter=1, varlen=None)
 ```
-- Leverages **adaptive sparsity** for efficiency in both forward and backward passes.
-- Requires **O(Tr × Tc) bits** of extra memory for storing a binary mask per block.
+- `adasplash` dispatches supported causal alpha=1.5 calls to AdaSplash-2.
+- Calls requesting v1-only behavior, such as `alpha != 1.5` or `is_causal=False`, fall back to v1.
+- `adasplash_v1` and `adasplash_v2` provide explicit behavior.
 
 ### **AdaSplash without Block Masking**
 ```python
@@ -55,6 +62,15 @@ output = adasplash_no_block_mask(q, k, v, alpha=1.5, niter=10, is_causal=True, v
 ```
 - Does **not** use block masking but still benefits from **tiling and fused ops** for efficiency.
 - Requires **less memory** than the block-masked version.
+
+### **Dense Entmax Attention Utility**
+```python
+from adasplash import entmax_attention
+
+output = entmax_attention(q, k, v, is_causal=True, padding="right", varlen=None)
+```
+- Uses the public v2 `triton_entmax` activation over dense attention scores.
+- Supports causal masking, variable lengths, left/right padding, and ALiBi slopes.
 
 ### Key Features
 
@@ -70,6 +86,7 @@ Adaptive Sparsity Control:
 output = adasplash(q, k, v, alpha=1.333)  # More dense
 output = adasplash(q, k, v, alpha=2.0)  # More sparse
 ```
+These calls use the v1 compatibility path. For strict v2 behavior, call `adasplash_v2`.
 
 Causal and Non-causal Masking:
 ```python
@@ -92,7 +109,8 @@ To ensure the library works as expected, install the development dependencies an
 
 ```bash
 pip install -r requirements-dev.txt
-pytest
+TRITON_INTERPRET=1 pytest
+pytest -m "not slow and not stress"  # on a CUDA machine
 ```
 
 ## Citation
@@ -116,4 +134,3 @@ If you use AdaSplash in your research, please cite:
 
 ## License
 AdaSplash is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-

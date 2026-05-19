@@ -4,7 +4,9 @@ import pytest
 import torch
 from entmax import entmax_bisect
 
-from adasplash import adasplash as sparse_attn
+from adasplash import adasplash_v1 as sparse_attn
+
+pytestmark = pytest.mark.gpu
 
 
 def mask_from_varlen(varlen, N_CTX):
