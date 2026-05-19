@@ -62,18 +62,18 @@ from adasplash import (
 )
 ```
 
-| Function | Purpose |
-| --- | --- |
+| Function | Purpose                                                                                                             |
+| --- |---------------------------------------------------------------------------------------------------------------------|
 | `adasplash` | Compatibility dispatcher. Uses v2 for supported causal `alpha=1.5` calls and falls back to v1 for v1-only behavior. |
-| `adasplash_v2` | Direct AdaSplash-2 causal sparse attention. |
-| `adasplash_v1` | Direct original AdaSplash block-mask implementation. |
-| `adasplash_no_block_mask` | Original v1 no-block-mask implementation. |
-| `triton_entmax` | Default v2 entmax API. |
-| `triton_entmax_v2` | Direct v2 entmax with histogram and hybrid solver support. |
-| `triton_entmax_v1` | Original entmax implementation. |
-| `triton_sparsemax` | Convenience v2 sparsemax call, equivalent to entmax with `alpha=2.0`. |
-| `triton_entmax15` | Convenience v2 entmax-1.5 call. |
-| `entmax_attention` | Dense attention utility using v2 `triton_entmax`. |
+| `adasplash_v2` | Direct AdaSplash-2 causal sparse attention.                                                                         |
+| `adasplash_v1` | Direct original AdaSplash block-mask implementation.                                                                |
+| `adasplash_no_block_mask` | Original v1 no-block-mask implementation.                                                                           |
+| `triton_entmax` | Default v2 entmax API.                                                                                              |
+| `triton_entmax_v2` | Direct v2 entmax with histogram and hybrid solver support.                                                          |
+| `triton_entmax_v1` | Original entmax implementation.                                                                                     |
+| `triton_sparsemax` | Convenience v2 sparsemax call, equivalent to entmax with `alpha=2.0`.                                               |
+| `triton_entmax15` | Convenience v2 entmax-1.5 call.                                                                                     |
+| `entmax_attention` | Sparse attention utility using v2 `triton_entmax`.                                                                  |
 
 ## Sparse Attention Examples
 
