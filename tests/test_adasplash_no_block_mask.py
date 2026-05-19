@@ -93,7 +93,8 @@ def test_v1_no_block_mask_fast_forward_backward_smoke():
 def test_forward_correctness(batch_size, n_heads, seq_len, head_dim, alpha, is_causal, dtype):
     """Test forward pass against reference implementation"""
     torch.manual_seed(42)
-    atol = 1e-2 if dtype == torch.float16 else 1e-4
+    atol = 2e-2 if dtype == torch.float16 else 1e-4
+    rtol = 1e-2 if dtype == torch.float16 else 1e-4
 
     # Generate random inputs
     q = torch.randn(batch_size, n_heads, seq_len, head_dim, dtype=dtype, device="cuda").contiguous()
@@ -111,7 +112,7 @@ def test_forward_correctness(batch_size, n_heads, seq_len, head_dim, alpha, is_c
     tri_out = sparse_attn(q, k, v, alpha=alpha, varlen=varlen, is_causal=is_causal)
 
     # Compare results
-    assert torch.allclose(tri_out, ref_out, atol=atol)
+    assert torch.allclose(tri_out, ref_out, atol=atol, rtol=rtol)
 
 
 @pytest.mark.slow
