@@ -536,6 +536,7 @@ def _fwd_entmax(
         tl.store(Y + curr_offsets, y, mask=load_mask)
 
 
+@_autotune(configs=get_configs(), key=["SIZE_N", "FAST_MATH"])
 @triton.jit
 def _bwd_entmax(
     Y,
