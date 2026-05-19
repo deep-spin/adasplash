@@ -1211,4 +1211,22 @@ class _sparse_attention(torch.autograd.Function):
 
 # TODO: Support the post_niter parameter.
 def sparse_attn(q, k, v, alpha=1.5, is_causal=False, varlen=None, niter=10):
+    """Run the original AdaSplash sparse attention kernel with a block mask.
+
+    Args:
+        q: Query tensor with shape ``(batch, n_heads, seq_len, head_dim)``.
+        k: Key tensor with the same shape as ``q``.
+        v: Value tensor with the same shape as ``q``.
+        alpha: Entmax alpha. Values in ``(1, 2]`` are supported by the v1
+            solver; ``1.5`` is the default.
+        is_causal: If true, apply a lower-triangular causal attention mask.
+        varlen: Optional integer tensor of shape ``(batch,)`` containing the
+            valid sequence length for each batch item. Padded output rows are
+            zeroed.
+        niter: Number of iterations used by the entmax threshold solver.
+
+    Returns:
+        Tensor with the same shape and dtype as ``q`` containing the attended
+        values.
+    """
     return _sparse_attention.apply(q, k, v, alpha, is_causal, varlen, niter)

@@ -1565,6 +1565,29 @@ class _sparse_attention(torch.autograd.Function):
 
 
 def sparse_attn(q, k, v, niter=1, varlen=None):
+    """Run the AdaSplash-2 causal sparse attention kernel.
+
+    AdaSplash-2 implements the v2 histogram/block-mask sparse attention path
+    for entmax-1.5 causal attention. Use the package-level ``adasplash``
+    dispatcher for backwards-compatible routing to v1 when non-causal or
+    non-1.5-alpha behavior is required.
+
+    Args:
+        q: Query tensor with shape ``(batch, n_heads, seq_len, head_dim)``.
+        k: Key tensor with shape ``(batch, n_kv_heads, seq_len, head_dim)``.
+            ``n_heads`` must be divisible by ``n_kv_heads``; grouped-query
+            attention is handled by sharing each KV head across its query group.
+        v: Value tensor with the same shape as ``k``.
+        niter: Number of post-histogram refinement iterations used by the v2
+            threshold solver.
+        varlen: Optional integer tensor of shape ``(batch,)`` containing the
+            valid sequence length for each batch item. Padded output rows are
+            zeroed.
+
+    Returns:
+        Tensor with the same shape and dtype as ``q`` containing the attended
+        values.
+    """
     return _sparse_attention.apply(q, k, v, niter, varlen)
 
 
