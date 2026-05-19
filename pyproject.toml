@@ -7,7 +7,7 @@ line_length = 120
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-norecursedirs = ["triton", "env", "build", "dist"]
+norecursedirs = ["triton", "env", "build", "dist", ".ipynb_checkpoints", "__pycache__"]
 markers = [
     "gpu: requires a CUDA-capable GPU",
     "slow: longer GPU correctness or stress tests",

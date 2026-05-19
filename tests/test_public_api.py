@@ -82,3 +82,11 @@ def test_v2_entmax_contains_histogram_hybrid_solver():
     assert "hist_init_tau" in source
     assert "hybrid_update" in source
     assert "use_histogram" in source
+
+
+def test_dispatcher_is_not_shadowed_by_v2_submodules():
+    import adasplash.adasplash_v2  # noqa: F401
+    import adasplash.triton_entmax_v2  # noqa: F401
+
+    assert callable(adasplash.adasplash)
+    assert callable(adasplash.triton_entmax)
