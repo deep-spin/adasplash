@@ -1,8 +1,16 @@
+import os
+
 import torch
 
 import triton
 import triton.language as tl
 from triton.language.extra.libdevice import fast_powf
+
+
+def _autotune(*args, **kwargs):
+    if os.environ.get("TRITON_INTERPRET", "0") == "1":
+        return lambda fn: fn
+    return triton.autotune(*args, **kwargs)
 
 
 def get_configs():
@@ -11,6 +19,8 @@ def get_configs():
     Returns:
         list: List of Triton Config objects with varying block sizes and warp counts.
     """
+    if os.environ.get("ADASPLASH_TEST_FAST_AUTOTUNE", "0") == "1":
+        return [triton.Config({"BLOCK_N": 32}, num_warps=1)]
     return [
         triton.Config({"BLOCK_N": bs}, num_warps=nw) for bs in [32, 64, 128, 256, 512, 1024] for nw in [1, 2, 4, 8, 16]
     ]
@@ -35,7 +45,7 @@ def _masked_pow(x, x_mask, coeff, FAST_MATH: tl.constexpr):
         return tl.where(x_mask, tl.exp2(x * coeff), 0)
 
 
-@triton.autotune(configs=get_configs(), key=["SIZE_N", "FAST_MATH", "N_ITER"])
+@_autotune(configs=get_configs(), key=["SIZE_N", "FAST_MATH", "N_ITER"])
 @triton.jit
 def _fwd_entmax(
     X,
@@ -137,7 +147,7 @@ def _fwd_entmax(
         tl.store(Y + curr_offsets, y, mask=load_mask)
 
 
-@triton.autotune(configs=get_configs(), key=["SIZE_N", "FAST_MATH"])
+@_autotune(configs=get_configs(), key=["SIZE_N", "FAST_MATH"])
 @triton.jit
 def _bwd_entmax(
     Y,
@@ -245,7 +255,7 @@ class _entmax_triton(torch.autograd.Function):
         y = torch.zeros_like(x).contiguous()
 
         # Define grid size for Triton kernel launch
-        grid = (x.shape[:-1].numel(), 1, 1)
+        grid = (x.numel() // SIZE_N, 1, 1)
 
         # Kernel launch
         _fwd_entmax[grid](
@@ -289,7 +299,7 @@ class _entmax_triton(torch.autograd.Function):
         dx = torch.zeros_like(dy).contiguous()
 
         # Define grid size for Triton kernel launch
-        grid = (y.shape[:-1].numel(), 1, 1)
+        grid = (y.numel() // SIZE_N, 1, 1)
 
         # Kernel launch
         _bwd_entmax[grid](
@@ -324,3 +334,26 @@ def triton_entmax(x: torch.Tensor, alpha: float = 1.5, n_iter: int = 10, fast_ma
         >>> torch.allclose(y.sum(-1), torch.ones(128).cuda())
     """
     return _entmax_triton.apply(x, alpha, n_iter, fast_math)
+
+
+def _public_triton_entmax(x: torch.Tensor, alpha=1.5, n_iter=2, use_histogram=True, fast_math=False):
+    from .triton_entmax_v2 import triton_entmax as _triton_entmax_v2
+
+    return _triton_entmax_v2(x, alpha=alpha, n_iter=n_iter, use_histogram=use_histogram, fast_math=fast_math)
+
+
+def _install_callable_module():
+    import inspect
+    import sys
+    import types
+
+    class _CallableModule(types.ModuleType):
+        def __call__(self, *args, **kwargs):
+            return _public_triton_entmax(*args, **kwargs)
+
+    module = sys.modules[__name__]
+    module.__class__ = _CallableModule
+    module.__signature__ = inspect.signature(_public_triton_entmax)
+
+
+_install_callable_module()

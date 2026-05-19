@@ -294,7 +294,7 @@ def _get_tau(
         bmask_ptrs += stride_bmm
 
 
-@torch.compile
+@torch.compiler.disable
 def compute_bidxs_and_cubcounts(
     bmask: torch.Tensor,
     B: int,
@@ -929,9 +929,11 @@ def ASSERT_VARLEN(varlen, N_CTX):
     else:
         assert varlen.dim() == 1, "varlen must be a one-dimensional tensor."
 
+
 @torch.compiler.disable
 def compute_varlen_max(varlen):
     return int(varlen.max().item())
+
 
 class _sparse_attention(torch.autograd.Function):
 

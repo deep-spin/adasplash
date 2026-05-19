@@ -1080,3 +1080,20 @@ class _sparse_attention(torch.autograd.Function):
 
 def sparse_attn(q, k, v, alpha=1.5, is_causal=False, varlen=None, niter=10):
     return _sparse_attention.apply(q, k, v, alpha, is_causal, varlen, niter)
+
+
+def _install_callable_module():
+    import inspect
+    import sys
+    import types
+
+    class _CallableModule(types.ModuleType):
+        def __call__(self, *args, **kwargs):
+            return sparse_attn(*args, **kwargs)
+
+    module = sys.modules[__name__]
+    module.__class__ = _CallableModule
+    module.__signature__ = inspect.signature(sparse_attn)
+
+
+_install_callable_module()
