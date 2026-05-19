@@ -1,3 +1,4 @@
+import gc
 import math
 
 import pytest
@@ -7,6 +8,14 @@ from entmax import entmax_bisect
 from adasplash import adasplash_v2 as sparse_attn
 
 pytestmark = pytest.mark.gpu
+
+
+@pytest.fixture(autouse=True)
+def _release_cuda_memory_between_tests():
+    yield
+    if torch.cuda.is_available():
+        gc.collect()
+        torch.cuda.empty_cache()
 
 
 def _skip_hdim64_backward_if_low_shared_memory():
@@ -19,6 +28,26 @@ def _skip_hdim64_backward_if_low_shared_memory():
         pytest.skip(
             "AdaSplash-2 H_DIM=64 backward currently compiles a kernel requiring "
             f"81920 bytes shared memory; this device exposes {max_shared} bytes."
+        )
+
+
+def _skip_dense_reference_stress_if_low_memory(seq_len, backward=False):
+    if not torch.cuda.is_available():
+        return
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    free_bytes, _ = torch.cuda.mem_get_info()
+    dense_elements = seq_len * seq_len
+    dense_factor = 16 if backward else 8
+    required_bytes = dense_elements * torch.finfo(torch.float32).bits // 8 * dense_factor
+    required_bytes += 2 * 1024**3
+
+    if free_bytes < required_bytes:
+        mode = "backward" if backward else "forward"
+        pytest.skip(
+            f"Skipping {seq_len} {mode} stress reference: dense entmax_bisect needs roughly "
+            f"{required_bytes / 1024**3:.1f} GiB free, current free memory is {free_bytes / 1024**3:.1f} GiB."
         )
 
 
@@ -155,6 +184,7 @@ def test_backward_matches_reference(seq_len):
 def test_forward_matches_reference_long_context(seq_len):
     """Forward pass of adasplash_v2 must match entmax_bisect reference in fp32
     at long contexts (basic causal MHA, no varlen, no GQA)."""
+    _skip_dense_reference_stress_if_low_memory(seq_len, backward=False)
     torch.manual_seed(42)
     B, N_H, H_DIM = 1, 1, 64
     dtype = torch.float32
@@ -178,6 +208,8 @@ def test_forward_matches_reference_long_context(seq_len):
 def test_backward_matches_reference_long_context(seq_len):
     """Backward pass gradients must match entmax_bisect's autograd in fp32
     at long contexts (basic causal MHA, no varlen, no GQA)."""
+    _skip_hdim64_backward_if_low_shared_memory()
+    _skip_dense_reference_stress_if_low_memory(seq_len, backward=True)
     torch.manual_seed(42)
     B, N_H, H_DIM = 1, 1, 64
     dtype = torch.float32
