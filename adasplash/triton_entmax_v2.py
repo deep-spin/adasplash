@@ -710,6 +710,9 @@ def triton_entmax(
         >>> x = torch.randn(128, 256).cuda()
         >>> y = triton_entmax(x, alpha=1.5, n_iter=2, use_histogram=True)
     """
+    if alpha not in (1.5, 2.0):
+        use_histogram = False
+        n_iter = max(n_iter, 10)
     return _entmax_triton.apply(x, alpha, n_iter, use_histogram, fast_math)
 
 
