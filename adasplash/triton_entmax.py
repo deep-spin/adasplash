@@ -19,6 +19,8 @@ def get_configs():
     Returns:
         list: List of Triton Config objects with varying block sizes and warp counts.
     """
+    if os.environ.get("ADASPLASH_TEST_FAST_AUTOTUNE", "0") == "1":
+        return [triton.Config({"BLOCK_N": 32}, num_warps=1)]
     return [
         triton.Config({"BLOCK_N": bs}, num_warps=nw) for bs in [32, 64, 128, 256, 512, 1024] for nw in [1, 2, 4, 8, 16]
     ]

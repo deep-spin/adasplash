@@ -10,6 +10,8 @@ LOCAL_TRITON = Path(__file__).resolve().parents[1] / "triton" / "python"
 if LOCAL_TRITON.exists():
     sys.path.insert(0, str(LOCAL_TRITON))
 
+os.environ.setdefault("ADASPLASH_TEST_FAST_AUTOTUNE", "1")
+
 import torch
 
 if not torch.cuda.is_available():

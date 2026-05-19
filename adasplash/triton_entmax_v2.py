@@ -14,6 +14,8 @@ def _autotune(*args, **kwargs):
 
 def get_configs():
     """Generate Triton configurations for autotuning."""
+    if os.environ.get("ADASPLASH_TEST_FAST_AUTOTUNE", "0") == "1":
+        return [triton.Config({"BLOCK_N": 32}, num_warps=2)]
     return [triton.Config({"BLOCK_N": bs}, num_warps=nw) for bs in [32, 64, 128, 256, 512] for nw in [2, 4, 8]]
 
 

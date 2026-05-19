@@ -7,7 +7,7 @@ import triton
 import triton.language as tl
 from triton.language.extra.libdevice import float2int_rd, popc
 
-DEBUG = False
+DEBUG = os.environ.get("ADASPLASH_TEST_FAST_AUTOTUNE", "0") == "1"
 
 
 def _autotune(*args, **kwargs):
