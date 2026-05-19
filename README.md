@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/adasplash.svg)](https://pypi.org/project/adasplash/)
 [![Hugging Face models](https://img.shields.io/badge/Hugging%20Face-sardinelab-ffcc4d?logo=huggingface&logoColor=black)](https://huggingface.co/sardinelab/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD--3--Clause-blue.svg)](LICENSE)
 
 AdaSplash is a Triton implementation of adaptive sparse attention based on entmax. It exposes the original **AdaSplash** kernels and the newer **🆕 AdaSplash-2** kernels through a backwards-compatible Python API.
 
@@ -257,7 +257,7 @@ url={https://openreview.net/forum?id=7qpvff2gWI}
 
 ## License
 
-AdaSplash is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+AdaSplash is licensed under the BSD-3-Clause License. See the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgements
 
