@@ -38,7 +38,7 @@ def reference_attention_varlen(q, k, v, varlen):
 
 def test_v2_fast_forward_backward_smoke():
     torch.manual_seed(42)
-    q = torch.randn(1, 1, 256, 64, device="cuda", dtype=torch.float32, requires_grad=True).contiguous()
+    q = torch.randn(1, 1, 256, 32, device="cuda", dtype=torch.float32, requires_grad=True).contiguous()
     k = torch.randn_like(q, requires_grad=True).contiguous()
     v = torch.randn_like(q, requires_grad=True).contiguous()
     do = torch.randn_like(q)
@@ -57,8 +57,8 @@ def test_v2_fast_forward_backward_smoke():
 
 def test_v2_fast_varlen_gqa_smoke():
     torch.manual_seed(42)
-    q = torch.randn(1, 2, 256, 64, device="cuda", dtype=torch.float32, requires_grad=True).contiguous()
-    k = torch.randn(1, 1, 256, 64, device="cuda", dtype=torch.float32, requires_grad=True).contiguous()
+    q = torch.randn(1, 2, 256, 32, device="cuda", dtype=torch.float32, requires_grad=True).contiguous()
+    k = torch.randn(1, 1, 256, 32, device="cuda", dtype=torch.float32, requires_grad=True).contiguous()
     v = torch.randn_like(k, requires_grad=True).contiguous()
     do = torch.randn_like(q)
     varlen = torch.tensor([160], device="cuda", dtype=torch.int32)
@@ -67,8 +67,8 @@ def test_v2_fast_varlen_gqa_smoke():
     v_rep = v.repeat_interleave(2, dim=1).contiguous()
     ref = reference_attention_varlen(q, k_rep, v_rep, varlen)
     ref_dq, ref_dk_rep, ref_dv_rep = torch.autograd.grad(ref, (q, k_rep, v_rep), do)
-    ref_dk = ref_dk_rep.view(1, 1, 2, 256, 64).sum(dim=2)
-    ref_dv = ref_dv_rep.view(1, 1, 2, 256, 64).sum(dim=2)
+    ref_dk = ref_dk_rep.view(1, 1, 2, 256, 32).sum(dim=2)
+    ref_dv = ref_dv_rep.view(1, 1, 2, 256, 32).sum(dim=2)
 
     out = sparse_attn(q, k, v, niter=10, varlen=varlen)
     tri_dq, tri_dk, tri_dv = torch.autograd.grad(out, (q, k, v), do)
