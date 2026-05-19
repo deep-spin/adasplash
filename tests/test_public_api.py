@@ -16,7 +16,6 @@ def test_public_api_exports_are_lazy_and_versioned():
         "triton_entmax_v2",
         "triton_sparsemax",
         "triton_entmax15",
-        "entmax_attention",
     ]:
         assert name in adasplash.__all__
         assert callable(getattr(adasplash, name))
@@ -49,24 +48,13 @@ def test_dispatcher_signatures_are_stable():
         "use_histogram",
         "fast_math",
     ]
-    assert list(inspect.signature(adasplash.entmax_attention).parameters) == [
-        "q",
-        "k",
-        "v",
-        "alpha",
-        "varlen",
-        "is_causal",
-        "padding",
-        "niter",
-        "alibi_slopes",
-    ]
+    assert not hasattr(adasplash, "entmax_attention")
 
 
 def test_package_source_allowlist():
     package_dir = Path(adasplash.__file__).resolve().parent
     allowed = {
         "__init__.py",
-        "attention.py",
         "adasplash_block_mask.py",
         "adasplash_no_block_mask.py",
         "adasplash_v2.py",

@@ -68,22 +68,6 @@ def triton_entmax15(x, **kwargs):
     return triton_entmax15(x, **kwargs)
 
 
-def entmax_attention(q, k, v, alpha=1.5, varlen=None, is_causal=False, padding="right", niter=2, alibi_slopes=None):
-    from .attention import entmax_attention as _entmax_attention
-
-    return _entmax_attention(
-        q,
-        k,
-        v,
-        alpha=alpha,
-        varlen=varlen,
-        is_causal=is_causal,
-        padding=padding,
-        niter=niter,
-        alibi_slopes=alibi_slopes,
-    )
-
-
 adasplash2 = _adasplash_v2
 
 __all__ = [
@@ -98,5 +82,4 @@ __all__ = [
     "triton_entmax_v2",
     "triton_sparsemax",
     "triton_entmax15",
-    "entmax_attention",
 ]

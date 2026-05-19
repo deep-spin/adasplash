@@ -58,22 +58,20 @@ from adasplash import (
     triton_entmax_v2,
     triton_sparsemax,
     triton_entmax15,
-    entmax_attention,
 )
 ```
 
-| Function | Purpose                                                                                                             |
-| --- |---------------------------------------------------------------------------------------------------------------------|
+| Function | Purpose |
+| --- | --- |
 | `adasplash` | Compatibility dispatcher. Uses v2 for supported causal `alpha=1.5` calls and falls back to v1 for v1-only behavior. |
-| `adasplash_v2` | Direct AdaSplash-2 causal sparse attention.                                                                         |
-| `adasplash_v1` | Direct original AdaSplash block-mask implementation.                                                                |
-| `adasplash_no_block_mask` | Original v1 no-block-mask implementation.                                                                           |
-| `triton_entmax` | Default v2 entmax API.                                                                                              |
-| `triton_entmax_v2` | Direct v2 entmax with histogram and hybrid solver support.                                                          |
-| `triton_entmax_v1` | Original entmax implementation.                                                                                     |
-| `triton_sparsemax` | Convenience v2 sparsemax call, equivalent to entmax with `alpha=2.0`.                                               |
-| `triton_entmax15` | Convenience v2 entmax-1.5 call.                                                                                     |
-| `entmax_attention` | Sparse attention utility using v2 `triton_entmax`.                                                                  |
+| `adasplash_v2` | Direct AdaSplash-2 causal sparse attention. |
+| `adasplash_v1` | Direct original AdaSplash block-mask implementation. |
+| `adasplash_no_block_mask` | Original v1 no-block-mask implementation. |
+| `triton_entmax` | Default v2 entmax API. |
+| `triton_entmax_v2` | Direct v2 entmax with histogram and hybrid solver support. |
+| `triton_entmax_v1` | Original entmax implementation. |
+| `triton_sparsemax` | Convenience v2 sparsemax call, equivalent to entmax with `alpha=2.0`. |
+| `triton_entmax15` | Convenience v2 entmax-1.5 call. |
 
 ## Sparse Attention Examples
 
@@ -153,23 +151,29 @@ y_entmax15 = triton_entmax15(x)
 
 For generic alpha values other than `1.5` and `2.0`, v2 disables histogram initialization internally and uses more refinement iterations for correctness.
 
-## Dense Entmax Attention Utility
+## Attention Examples
+
+The `examples/attention.py` file contains two small helpers that show the difference between the fused AdaSplash kernel and a dense reference-style implementation.
+
+### Flash Entmax Attention
 
 ```python
-from adasplash import entmax_attention
+from examples.attention import flash_entmax_attention
 
-out = entmax_attention(
-    q,
-    k,
-    v,
-    alpha=1.5,
-    is_causal=True,
-    varlen=None,
-    padding="right",
-)
+out = flash_entmax_attention(q, k, v, is_causal=True)
 ```
 
-`entmax_attention` is a dense utility built on top of v2 `triton_entmax`. It supports causal masking, non-causal masking, variable lengths, left/right padding, ALiBi slopes, and gradients through `q`, `k`, and `v`.
+`flash_entmax_attention` is a thin example wrapper around `adasplash`, the actual fused flash entmax attention path.
+
+### Slow Dense Entmax Attention
+
+```python
+from examples.attention import slow_entmax_attention
+
+out = slow_entmax_attention(q, k, v, is_causal=True, padding="right")
+```
+
+`slow_entmax_attention` materializes dense attention scores and applies `triton_entmax`. It is useful for examples and small correctness checks, but it is not the AdaSplash flash kernel and should not be used for long contexts.
 
 ## Backwards Compatibility
 

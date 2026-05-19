@@ -2,6 +2,8 @@ import math
 
 import torch
 
+from adasplash import adasplash
+
 
 def _varlen_mask(varlen, size, padding):
     positions = torch.arange(size, device=varlen.device)
@@ -29,8 +31,24 @@ def _alibi_bias(q, k, alibi_slopes):
     return alibi_slopes.to(q.device).view(1, n_heads, 1, 1) * rel_pos
 
 
-def entmax_attention(q, k, v, alpha=1.5, varlen=None, is_causal=False, padding="right", niter=2, alibi_slopes=None):
-    """Dense QK attention using the public v2 Triton entmax activation."""
+def slow_entmax_attention(
+    q,
+    k,
+    v,
+    alpha=1.5,
+    varlen=None,
+    is_causal=False,
+    padding="right",
+    niter=2,
+    alibi_slopes=None,
+):
+    """Dense reference-style entmax attention built from ``triton_entmax``.
+
+    This helper materializes the full attention matrix, so it is useful for
+    examples, debugging, and small correctness checks. It is not the flash
+    sparse attention kernel; use ``flash_entmax_attention`` or ``adasplash`` for
+    the fused AdaSplash path.
+    """
     if q.dim() != 4 or k.dim() != 4 or v.dim() != 4:
         raise ValueError("q, k and v must have shape (batch, heads, seq_len, head_dim).")
     if k.shape != v.shape:
@@ -64,10 +82,15 @@ def entmax_attention(q, k, v, alpha=1.5, varlen=None, is_causal=False, padding="
             output_mask = _varlen_mask(varlen.to(q.device), q_len, padding)[:, None, :, None]
             scores = scores.masked_fill(~output_mask, 0.0)
 
-    from .triton_entmax_v2 import triton_entmax
+    from adasplash import triton_entmax
 
     probs = triton_entmax(scores.contiguous(), alpha=alpha, n_iter=niter, fast_math=False)
     out = torch.matmul(probs, v)
     if output_mask is not None:
         out = out.masked_fill(~output_mask, 0)
     return out
+
+
+def flash_entmax_attention(q, k, v, alpha=1.5, varlen=None, is_causal=True, niter=None):
+    """Run the fused AdaSplash flash entmax attention dispatcher."""
+    return adasplash(q, k, v, alpha=alpha, is_causal=is_causal, varlen=varlen, niter=niter)

@@ -1,0 +1,1 @@
+"""Example helpers for AdaSplash."""
