@@ -86,7 +86,18 @@ def test_v2_entmax_contains_histogram_hybrid_solver():
 
 def test_dispatcher_is_not_shadowed_by_v2_submodules():
     import adasplash.adasplash_v2  # noqa: F401
+    import adasplash.triton_entmax  # noqa: F401
     import adasplash.triton_entmax_v2  # noqa: F401
 
     assert callable(adasplash.adasplash)
+    assert callable(adasplash.adasplash_v2)
     assert callable(adasplash.triton_entmax)
+    assert callable(adasplash.triton_entmax_v2)
+    assert list(inspect.signature(adasplash.adasplash_v2).parameters) == ["q", "k", "v", "niter", "varlen"]
+    assert list(inspect.signature(adasplash.triton_entmax).parameters) == [
+        "x",
+        "alpha",
+        "n_iter",
+        "use_histogram",
+        "fast_math",
+    ]

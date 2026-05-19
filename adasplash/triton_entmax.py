@@ -334,3 +334,26 @@ def triton_entmax(x: torch.Tensor, alpha: float = 1.5, n_iter: int = 10, fast_ma
         >>> torch.allclose(y.sum(-1), torch.ones(128).cuda())
     """
     return _entmax_triton.apply(x, alpha, n_iter, fast_math)
+
+
+def _public_triton_entmax(x: torch.Tensor, alpha=1.5, n_iter=2, use_histogram=True, fast_math=False):
+    from .triton_entmax_v2 import triton_entmax as _triton_entmax_v2
+
+    return _triton_entmax_v2(x, alpha=alpha, n_iter=n_iter, use_histogram=use_histogram, fast_math=fast_math)
+
+
+def _install_callable_module():
+    import inspect
+    import sys
+    import types
+
+    class _CallableModule(types.ModuleType):
+        def __call__(self, *args, **kwargs):
+            return _public_triton_entmax(*args, **kwargs)
+
+    module = sys.modules[__name__]
+    module.__class__ = _CallableModule
+    module.__signature__ = inspect.signature(_public_triton_entmax)
+
+
+_install_callable_module()

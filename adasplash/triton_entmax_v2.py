@@ -726,3 +726,20 @@ def triton_sparsemax(x: torch.Tensor, **kwargs) -> torch.Tensor:
 def triton_entmax15(x: torch.Tensor, **kwargs) -> torch.Tensor:
     """Entmax 1.5 with histogram initialization."""
     return triton_entmax(x, alpha=1.5, **kwargs)
+
+
+def _install_callable_module():
+    import inspect
+    import sys
+    import types
+
+    class _CallableModule(types.ModuleType):
+        def __call__(self, *args, **kwargs):
+            return triton_entmax(*args, **kwargs)
+
+    module = sys.modules[__name__]
+    module.__class__ = _CallableModule
+    module.__signature__ = inspect.signature(triton_entmax)
+
+
+_install_callable_module()
