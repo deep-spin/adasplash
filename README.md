@@ -11,8 +11,8 @@ AdaSplash is a Triton implementation of adaptive sparse attention based on entma
 
 Papers:
 
-- AdaSplash: [Adaptive Sparse Flash Attention](https://openreview.net/forum?id=OWIPDWhUcO)
-- AdaSplash-2: [Faster Differentiable Sparse Attention](https://openreview.net/forum?id=7qpvff2gWI)
+- AdaSplash: [Adaptive Sparse Flash Attention](https://arxiv.org/pdf/2502.12082)
+- AdaSplash-2: [Faster Differentiable Sparse Attention](https://arxiv.org/pdf/2604.15180)
 
 ## Installation
 
